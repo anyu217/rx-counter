@@ -9,10 +9,9 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 2em;
+      padding: 1em;
       margin: 0;
       background: #f0f0f0;
-      position: relative;
     }
     h1 {
       background-color: #007B83;
@@ -21,24 +20,17 @@
       margin: 0;
     }
     video, canvas {
-      width: 50vw;
+      width: 100vw;
       height: auto;
-      max-height: 80vh;
       display: block;
       margin: 0 auto;
       border-radius: 10px;
     }
-    #overlay {
-      position: static;
-      margin-top: 1em;
-      color: #00AA00;
-      font-size: 2em;
-      font-weight: bold;
-    }
     #countDisplay {
       margin-top: 1em;
-      font-size: 1.4em;
-      color: #333;
+      font-size: 1.8em;
+      color: #007B83;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -46,22 +38,19 @@
   <h1>藥局即時計數器（Mediapipe 物件偵測）</h1>
   <video id="video" autoplay muted playsinline></video>
   <canvas id="canvas"></canvas>
-  <div id="overlay"></div>
   <div id="countDisplay">載入模型中...</div>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const overlay = document.getElementById('overlay');
     const countDisplay = document.getElementById('countDisplay');
-
     let detector;
 
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { exact: "environment" },
+          facingMode: { ideal: "environment" },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -98,33 +87,23 @@
       let count = 0;
       detections.detections.forEach(det => {
         const box = det.boundingBox;
-        const aspectRatio = box.width / box.height;
-        const area = box.width * box.height;
+        const centerX = box.originX + box.width / 2;
+        const centerY = box.originY + box.height / 2;
 
-        // 排除非立體藥丸（例如過於扁平的）
-        if (
-          area > 400 && area < 50000 &&
-          aspectRatio > 0.5 && aspectRatio < 2
-        ) {
-          const centerX = box.originX + box.width / 2;
-          const centerY = box.originY + box.height / 2;
-
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
-          ctx.fillStyle = "#00FF00";
-          ctx.fill();
-          count++;
-        }
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = "#00FF00";
+        ctx.fill();
+        count++;
       });
 
-      overlay.textContent = `數量：${count}`;
-      countDisplay.textContent = `辨識數量：${count}`;
+      countDisplay.textContent = `偵測到藥品數量：${count}`;
     }
 
     async function run() {
       await setupCamera();
       await loadModel();
-      setInterval(detect, 300); // 提高頻率
+      setInterval(detect, 1000);
     }
 
     run();
