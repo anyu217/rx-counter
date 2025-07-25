@@ -118,7 +118,8 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: { exact: deviceId },
+            deviceId: deviceId ? { exact: deviceId } : undefined,
+            facingMode: deviceId ? undefined : { ideal: "environment" },
             width: { ideal: width },
             height: { ideal: height }
           }
@@ -131,7 +132,7 @@
 
     navigator.mediaDevices.enumerateDevices().then(devices => {
       const camSelect = document.getElementById('cameras');
-      devices.filter(d => d.kind === "videoinput").forEach(cam => {
+      devices.filter(d => d.kind === "videoinput" && !/front|user/i.test(cam.label)).forEach(cam => {
         const option = document.createElement('option');
         option.value = cam.deviceId;
         option.text = cam.label || `相機 ${camSelect.length + 1}`;
