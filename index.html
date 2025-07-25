@@ -45,8 +45,8 @@
     <button id="camera">📷 開啟相機</button>
   </div>
   <div style="position: relative; display: inline-block;">
-    <video id="video" width="1280" height="720" autoplay muted></video>
-    <canvas id="canvas" width="1280" height="720"></canvas>
+    <video id="video" width="640" height="480" autoplay muted></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
     <div id="overlay"></div>
   </div>
   <div id="analysis" style="margin-top: 1em; font-size: 1.2em; color: #555;"></div>
@@ -89,12 +89,12 @@
       let tempCount = 0;
 
       let circles = new cv.Mat();
-      cv.HoughCircles(blurred, circles, cv.HOUGH_GRADIENT, 1, 20, 100, 20, 10, 60);
+      cv.HoughCircles(blurred, circles, cv.HOUGH_GRADIENT, 1, 20, 100, 20, 5, 50);
       for (let i = 0; i < circles.cols; ++i) {
         let x = circles.data32F[i * 3];
         let y = circles.data32F[i * 3 + 1];
         let r = circles.data32F[i * 3 + 2];
-        if (r < 10 || r > 60) continue;
+        if (r < 5 || r > 50) continue;
         drawDot(x, y);
         tempCount++;
       }
@@ -108,8 +108,8 @@
         let rect = cv.boundingRect(contours.get(i));
         let area = rect.width * rect.height;
         let aspectRatio = rect.width / rect.height;
-        if (area < 300 || area > 8000) continue;
-        if (aspectRatio < 0.5 || aspectRatio > 2.5) continue;
+        if (area < 200 || area > 5000) continue;
+        if (aspectRatio < 0.4 || aspectRatio > 3.0) continue;
         drawDot(rect.x + rect.width / 2, rect.y + rect.height / 2);
         tempCount++;
       }
@@ -161,8 +161,8 @@
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { exact: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 640 },
+            height: { ideal: 480 }
           }
         });
         video.srcObject = stream;
