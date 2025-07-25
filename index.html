@@ -1,26 +1,19 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>藥錠辨識計數器 V3.4</title>
+  <title>藥錠辨識計數器 V3.9</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script async src="https://docs.opencv.org/4.5.5/opencv.js" onload="onOpenCvReady()"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 2em; }
-    .count { font-size: 4em; margin: 1em; color: #333; }
-    button, select { font-size: 1.1em; margin: 0.3em; padding: 0.8em 1.2em; border-radius: 5px; border: none; }
-    video, canvas { margin-top: 1em; }
-    #overlay { position: absolute; top: 10px; right: 10px; color: #00FF00; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 8px; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 1em; }
+    video, canvas { display: block; margin: 0.5em auto; }
+    #overlay { font-size: 1.2em; margin-top: 0.5em; color: #0a0; }
   </style>
 </head>
 <body>
-  <h1>藥錠辨識計數器 V3.4</h1>
-  <div class="count" id="count">0</div>
-  <div>
-    <button id="dec">➖ 減一顆</button>
-    <button id="reset">🔄 歸零</button>
-    <button id="inc">➕ 加一顆</button>
-  </div>
+  <h2>藥錠即時辨識計數器 V3.9</h2>
   <div>
     <label for="resolution">解析度：</label>
     <select id="resolution">
@@ -28,81 +21,61 @@
       <option value="1280x720">1280x720</option>
       <option value="1920x1080">1920x1080</option>
     </select>
-    <label for="cameras">鏡頭：</label>
-    <select id="cameras"></select>
-    <button id="camera">📷 開啟相機</button>
+    <button id="start">📷 開啟後鏡頭</button>
   </div>
-  <div style="position: relative; display: inline-block;">
-    <video id="video" autoplay muted playsinline></video>
-    <canvas id="canvas"></canvas>
-    <div id="overlay">解析度：-</div>
-  </div>
-  <script>
-    let count = 0;
-    let opencvReady = false;
-    const countEl = document.getElementById('count');
-    const overlay = document.getElementById('overlay');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
-    const video = document.getElementById('video');
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+  <div id="overlay">尚未啟動相機</div>
 
-    function update() {
-      countEl.textContent = count;
-      overlay.textContent = `數量：${count}｜解析度：${video.videoWidth}x${video.videoHeight}`;
-    }
+  <script>
+    let video = document.getElementById('video');
+    let canvas = document.getElementById('canvas');
+    let overlay = document.getElementById('overlay');
+    let ctx = canvas.getContext('2d');
+    let stream = null;
+    let opencvReady = false;
 
     function drawDot(x, y) {
-      context.beginPath();
-      context.arc(x, y, 5, 0, 2 * Math.PI);
-      context.fillStyle = '#00FF00';
-      context.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = "#00FF00";
+      ctx.fill();
     }
 
     function processFrame() {
       if (!opencvReady || video.videoWidth === 0) return;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
       let src = cv.imread(canvas);
-      let dst = new cv.Mat();
-      let mask = new cv.Mat();
       let gray = new cv.Mat();
-
-      let pts = cv.matFromArray(3, 1, cv.CV_32SC2, [60,60, canvas.width-60,60, canvas.width/2,canvas.height-30]);
-      mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
-      cv.fillPoly(mask, [pts], [255,255,255,255]);
-      cv.bitwise_and(src, src, dst, mask);
-
-      let hsv = new cv.Mat();
-      cv.cvtColor(dst, hsv, cv.COLOR_RGBA2RGB);
-      cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
-      let low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0,0,180,0]);
-      let high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [180,40,255,255]);
-      let whiteMask = new cv.Mat();
-      cv.inRange(hsv, low, high, whiteMask);
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+      let binary = new cv.Mat();
+      cv.threshold(gray, binary, 200, 255, cv.THRESH_BINARY);
 
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
-      cv.findContours(whiteMask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      let tempCount = 0;
-      for (let i = 0; i < contours.size(); i++) {
+      let count = 0;
+      for (let i = 0; i < contours.size(); ++i) {
         let cnt = contours.get(i);
         let area = cv.contourArea(cnt);
-        if (area < 200 || area > 3000) continue;
+        if (area < 100 || area > 3000) continue;
         let peri = cv.arcLength(cnt, true);
-        let circ = 4 * Math.PI * area / (peri * peri);
-        if (circ < 0.4) continue;
-        let m = cv.moments(cnt);
-        let cx = m.m10 / m.m00;
-        let cy = m.m01 / m.m00;
+        let circularity = 4 * Math.PI * area / (peri * peri);
+        if (circularity < 0.4) continue;
+        let M = cv.moments(cnt);
+        let cx = M.m10 / M.m00;
+        let cy = M.m01 / M.m00;
         drawDot(cx, cy);
-        tempCount++;
+        count++;
       }
 
-      count = tempCount;
-      update();
-      [src, dst, mask, gray, hsv, low, high, whiteMask, contours, hierarchy].forEach(m => m.delete());
+      overlay.textContent = `偵測數量：${count} ｜ 解析度：${video.videoWidth}x${video.videoHeight}`;
+      src.delete(); gray.delete(); binary.delete(); contours.delete(); hierarchy.delete();
     }
 
     function onOpenCvReady() {
@@ -110,44 +83,27 @@
       setInterval(processFrame, 1000);
     }
 
-    let currentStream = null;
-    document.getElementById('camera').onclick = async () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+    document.getElementById('start').onclick = async () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
+
       const resolution = document.getElementById('resolution').value;
-      const [width, height] = resolution.split('x').map(Number);
-      const deviceId = document.getElementById('cameras').value;
+      const [w, h] = resolution.split('x').map(Number);
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: deviceId ? { exact: deviceId } : undefined,
-            facingMode: deviceId ? undefined : { ideal: "environment" },
-            width: { ideal: width },
-            height: { ideal: height }
+            facingMode: { ideal: "environment" },
+            width: { ideal: w },
+            height: { ideal: h }
           }
         });
         video.srcObject = stream;
-      currentStream = stream;
-      } catch (err) {
-        alert("無法開啟相機：" + err.message);
+      } catch (e) {
+        overlay.textContent = "相機啟動失敗：" + e.message;
       }
     };
-
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-      const camSelect = document.getElementById('cameras');
-      devices.filter(d => d.kind === "videoinput" && !/front|user/i.test(cam.label)).forEach(cam => {
-        const option = document.createElement('option');
-        option.value = cam.deviceId;
-        option.text = cam.label || `相機 ${camSelect.length + 1}`;
-        camSelect.appendChild(option);
-      });
-    });
-
-    document.getElementById('inc').onclick = () => { count++; update(); };
-    document.getElementById('dec').onclick = () => { if (count > 0) count--; update(); };
-    document.getElementById('reset').onclick = () => { count = 0; update(); };
   </script>
 </body>
 </html>
