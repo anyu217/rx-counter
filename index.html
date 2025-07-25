@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>藥錠偵測計數器 V5.0 (YOLOv8 Tiny)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/wasm-yolo@latest/dist/yolo.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; text-align: center; background: #fafafa; }
+    header { background: #007b83; color: white; padding: 1em; font-size: 1.5em; }
+    #video, #canvas { display: block; margin: 1em auto; border-radius: 10px; }
+    #countDisplay { font-size: 1.2em; color: #007b83; margin-top: -0.5em; }
+  </style>
+</head>
+<body>
+  <header>藥錠偵測計數器 V5.0（YOLOv8 Tiny）</header>
+  <video id="video" autoplay muted playsinline width="640" height="480"></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
+  <div id="countDisplay">模型載入中...</div>
+
+  <script>
+    let video = document.getElementById('video');
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+    let yolo;
+
+    async function initCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { exact: "environment" },
+          width: { ideal: 640 }, height: { ideal: 480 }
+        }
+      });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => resolve(video);
+      });
+    }
+
+    async function loadYOLO() {
+      yolo = await YOLO.load({
+        model: 'https://huggingface.co/keremberke/yolov8n-pills/resolve/main/model.onnx',  // replace with hosted model
+        backend: 'wasm'
+      });
+      document.getElementById('countDisplay').textContent = '模型載入完成，啟動中...';
+    }
+
+    async function detectLoop() {
+      if (!yolo || video.readyState !== 4) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const result = await yolo.detect(canvas);
+      let count = 0;
+      for (const obj of result.objects) {
+        if (obj.score < 0.5) continue;
+        count++;
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3]);
+      }
+      document.getElementById('countDisplay').textContent = `偵測到藥錠數量：${count}`;
+    }
+
+    async function main() {
+      await initCamera();
+      await loadYOLO();
+      setInterval(detectLoop, 1000);
+    }
+
+    main();
+  </script>
+</body>
+</html>
