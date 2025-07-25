@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>藥局即時計數器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script async src="https://docs.opencv.org/4.5.5/opencv.js" onload="onOpenCvReady()"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 2em; }
     .count { font-size: 4em; margin: 1em; color: #333; }
@@ -64,6 +65,7 @@
   <script>
     let count = 0;
     let history = [];
+    let opencvReady = false;
     const countEl = document.getElementById('count');
     const analysisEl = document.getElementById('analysis');
     const overlay = document.getElementById('overlay');
@@ -74,19 +76,43 @@
       overlay.textContent = `目前藥品數量：${count}`;
     }
 
-    function drawDummyBoxes(n) {
+    function drawBox(x, y, w, h) {
+      const box = document.createElement('div');
+      box.className = 'box';
+      box.style.left = `${x}px`;
+      box.style.top = `${y}px`;
+      box.style.width = `${w}px`;
+      box.style.height = `${h}px`;
+      boxContainer.appendChild(box);
+    }
+
+    function processWithOpenCV() {
       boxContainer.innerHTML = '';
-      for (let i = 0; i < n; i++) {
-        const box = document.createElement('div');
-        box.className = 'box';
-        const x = Math.random() * 260;
-        const y = Math.random() * 180;
-        box.style.left = `${x}px`;
-        box.style.top = `${y}px`;
-        box.style.width = '40px';
-        box.style.height = '40px';
-        boxContainer.appendChild(box);
+      const src = cv.imread('canvas');
+      let gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+      let edges = new cv.Mat();
+      cv.Canny(gray, edges, 50, 150);
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      count += contours.size();
+      history.push({ t: new Date().toISOString(), delta: contours.size(), via: 'opencv' });
+      update();
+
+      for (let i = 0; i < contours.size(); i++) {
+        let rect = cv.boundingRect(contours.get(i));
+        drawBox(rect.x, rect.y, rect.width, rect.height);
       }
+
+      src.delete(); gray.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+    }
+
+    function onOpenCvReady() {
+      opencvReady = true;
+      console.log("OpenCV.js is ready.");
     }
 
     document.getElementById('inc').onclick = () => {
@@ -138,14 +164,14 @@
     };
 
     document.getElementById('capture').onclick = () => {
+      if (!opencvReady) {
+        alert("OpenCV.js 尚未載入完成，請稍候再試。");
+        return;
+      }
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.style.display = 'block';
-      let dummyCount = Math.floor(Math.random() * 10) + 1;
-      count += dummyCount;
-      history.push({ t: new Date().toISOString(), delta: dummyCount, via: 'camera' });
-      update();
-      drawDummyBoxes(dummyCount);
-      analysisEl.textContent = `模擬辨識：偵測到 ${dummyCount} 顆藥品`;
+      processWithOpenCV();
+      analysisEl.textContent = `影像辨識已完成，已更新藥品數量`;
     };
   </script>
 </body>
