@@ -1,51 +1,61 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>藥局即時計數器 Mediapipe 強化版</title>
+  <title>藥局即時計數器 Mediapipe 版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 1em;
+      padding: 2em;
       margin: 0;
       background: #f0f0f0;
+      position: relative;
     }
     h1 {
       background-color: #007B83;
       color: white;
       padding: 1em;
-      margin-bottom: 0;
+      margin: 0;
     }
     video, canvas {
-      width: 90vw;
-      max-height: 60vh;
-      border-radius: 10px;
-      margin: 0.5em auto;
+      width: 50vw;
+      height: auto;
+      max-height: 80vh;
       display: block;
+      margin: 0 auto;
+      border-radius: 10px;
+    }
+    #overlay {
+      position: static;
+      margin-top: 1em;
+      color: #00AA00;
+      font-size: 2em;
+      font-weight: bold;
     }
     #countDisplay {
       margin-top: 1em;
-      font-size: 2em;
-      font-weight: bold;
-      color: #007B83;
+      font-size: 1.4em;
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <h1>藥局即時計數器（Mediapipe 強化版）</h1>
+  <h1>藥局即時計數器（Mediapipe 物件偵測）</h1>
   <video id="video" autoplay muted playsinline></video>
   <canvas id="canvas"></canvas>
-  <div id="countDisplay">載入中...</div>
+  <div id="overlay"></div>
+  <div id="countDisplay">載入模型中...</div>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
     const countDisplay = document.getElementById('countDisplay');
+
     let detector;
 
     async function setupCamera() {
@@ -67,13 +77,15 @@
     }
 
     async function loadModel() {
-      const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm');
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
+      );
       detector = await ObjectDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath:
             'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/object_detector.task',
         },
-        scoreThreshold: 0.55
+        scoreThreshold: 0.5
       });
       countDisplay.textContent = "模型已載入";
     }
@@ -81,23 +93,25 @@
     async function detect() {
       if (!detector || video.readyState !== 4) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const results = await detector.detect(video);
+      const detections = await detector.detect(video);
+
       let count = 0;
-      results.detections.forEach(det => {
+      detections.detections.forEach(det => {
         const box = det.boundingBox;
-        const area = box.width * box.height;
-        const ratio = box.width / box.height;
-        if (area > 800 && area < 25000 && ratio > 0.8 && ratio < 1.2) {
-          const cx = box.originX + box.width / 2;
-          const cy = box.originY + box.height / 2;
+        const centerX = box.originX + box.width / 2;
+        const centerY = box.originY + box.height / 2;
+
+        if (box.width > 20 && box.height > 20 && box.width < 200 && box.height < 200) {
           ctx.beginPath();
-          ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+          ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
           ctx.fillStyle = "#00FF00";
           ctx.fill();
           count++;
         }
       });
-      countDisplay.textContent = `辨識藥錠數量：${count}`;
+
+      overlay.textContent = `數量：${count}`;
+      countDisplay.textContent = `辨識數量：${count}`;
     }
 
     async function run() {
