@@ -2,37 +2,35 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>藥錠辨識計數器 V3.9</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>藥錠辨識計數器 V4.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script async src="https://docs.opencv.org/4.5.5/opencv.js" onload="onOpenCvReady()"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 1em; }
-    video, canvas { display: block; margin: 0.5em auto; }
-    #overlay { font-size: 1.2em; margin-top: 0.5em; color: #0a0; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; background: #f9f9f9; }
+    header { background: #007b83; color: white; padding: 1em; font-size: 1.5em; }
+    main { padding: 1em; }
+    video, canvas { display: block; margin: 0 auto; }
+    #overlay { margin-top: 0.5em; font-size: 1.2em; color: #00aa00; }
+    button { margin-top: 1em; font-size: 1.1em; padding: 0.8em 1.2em; border: none; border-radius: 5px; background: #007b83; color: white; }
+    button:hover { background: #005e65; }
   </style>
 </head>
 <body>
-  <h2>藥錠即時辨識計數器 V3.9</h2>
-  <div>
-    <label for="resolution">解析度：</label>
-    <select id="resolution">
-      <option value="640x480" selected>640x480</option>
-      <option value="1280x720">1280x720</option>
-      <option value="1920x1080">1920x1080</option>
-    </select>
-    <button id="start">📷 開啟後鏡頭</button>
-  </div>
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
-  <div id="overlay">尚未啟動相機</div>
+  <header>藥錠即時辨識計數器 V4.0</header>
+  <main>
+    <video id="video" autoplay playsinline muted width="640" height="480"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <div id="overlay">尚未啟動相機</div>
+    <button id="start">📷 啟動後鏡頭</button>
+  </main>
 
   <script>
     let video = document.getElementById('video');
     let canvas = document.getElementById('canvas');
-    let overlay = document.getElementById('overlay');
     let ctx = canvas.getContext('2d');
-    let stream = null;
+    let overlay = document.getElementById('overlay');
+    let currentStream = null;
     let opencvReady = false;
 
     function drawDot(x, y) {
@@ -44,6 +42,7 @@
 
     function processFrame() {
       if (!opencvReady || video.videoWidth === 0) return;
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -75,7 +74,7 @@
       }
 
       overlay.textContent = `偵測數量：${count} ｜ 解析度：${video.videoWidth}x${video.videoHeight}`;
-      src.delete(); gray.delete(); binary.delete(); contours.delete(); hierarchy.delete();
+      [src, gray, binary, contours, hierarchy].forEach(m => m.delete());
     }
 
     function onOpenCvReady() {
@@ -84,22 +83,20 @@
     }
 
     document.getElementById('start').onclick = async () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
       }
 
-      const resolution = document.getElementById('resolution').value;
-      const [w, h] = resolution.split('x').map(Number);
-
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: w },
-            height: { ideal: h }
+            facingMode: { exact: "environment" }, // Prefer rear camera
+            width: { ideal: 640 },
+            height: { ideal: 480 }
           }
         });
         video.srcObject = stream;
+        currentStream = stream;
       } catch (e) {
         overlay.textContent = "相機啟動失敗：" + e.message;
       }
