@@ -110,7 +110,11 @@
       setInterval(processFrame, 1000);
     }
 
+    let currentStream = null;
     document.getElementById('camera').onclick = async () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
       const resolution = document.getElementById('resolution').value;
       const [width, height] = resolution.split('x').map(Number);
       const deviceId = document.getElementById('cameras').value;
@@ -125,6 +129,7 @@
           }
         });
         video.srcObject = stream;
+      currentStream = stream;
       } catch (err) {
         alert("無法開啟相機：" + err.message);
       }
