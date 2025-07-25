@@ -42,6 +42,12 @@
     <button id="inc">➕ 加一顆</button>
   </div>
   <div>
+    <label for="resolution">解析度：</label>
+    <select id="resolution">
+      <option value="640x480">640x480</option>
+      <option value="1280x720" selected>1280x720</option>
+      <option value="1920x1080">1920x1080</option>
+    </select>
     <button id="camera">📷 開啟相機</button>
   </div>
   <div style="position: relative; display: inline-block;">
@@ -153,7 +159,15 @@
 
     document.getElementById('camera').onclick = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+        const resolution = document.getElementById('resolution').value;
+      const [width, height] = resolution.split('x').map(x => parseInt(x));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: width },
+          height: { ideal: height }
+        }
+      });
         video.srcObject = stream;
       } catch (err) {
         alert('無法開啟相機（後鏡頭）：' + err.message);
@@ -198,6 +212,12 @@
     <button id="inc">➕ 加一顆</button>
   </div>
   <div>
+    <label for="resolution">解析度：</label>
+    <select id="resolution">
+      <option value="640x480">640x480</option>
+      <option value="1280x720" selected>1280x720</option>
+      <option value="1920x1080">1920x1080</option>
+    </select>
     <button id="camera">📷 開啟相機</button>
   </div>
   <div style="position: relative; display: inline-block;">
@@ -310,7 +330,15 @@
     };
     document.getElementById('camera').onclick = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+        const resolution = document.getElementById('resolution').value;
+      const [width, height] = resolution.split('x').map(x => parseInt(x));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: width },
+          height: { ideal: height }
+        }
+      });
         video.srcObject = stream;
       } catch (err) {
         alert('無法開啟相機：' + err.message);
