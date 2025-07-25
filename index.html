@@ -1,74 +1,171 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>藥錠偵測計數器 V5.0 (YOLOv8 Tiny)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/wasm-yolo@latest/dist/yolo.min.js"></script>
+  <title>藥局即時計數器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script async src="https://docs.opencv.org/4.5.5/opencv.js" onload="onOpenCvReady()"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; text-align: center; background: #fafafa; }
-    header { background: #007b83; color: white; padding: 1em; font-size: 1.5em; }
-    #video, #canvas { display: block; margin: 1em auto; border-radius: 10px; }
-    #countDisplay { font-size: 1.2em; color: #007b83; margin-top: -0.5em; }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 2em; }
+    .count { font-size: 4em; margin: 1em; color: #333; }
+    button { font-size: 1.2em; margin: 0.5em; padding: 1em 1.5em; border-radius: 5px; border: none; cursor: pointer; }
+    button:hover { background: #f0f0f0; }
+    #export { margin-top: 2em; background: #4CAF50; color: white; }
+    video, canvas { display: block; margin: 1em auto; max-width: 100%; }
+    #overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: #00FF00;
+      font-size: 1.5em;
+      font-weight: bold;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+    #canvas {
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+    #video {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <header>藥錠偵測計數器 V5.0（YOLOv8 Tiny）</header>
-  <video id="video" autoplay muted playsinline width="640" height="480"></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <div id="countDisplay">模型載入中...</div>
+  <h1>藥局即時計數器</h1>
+  <div class="count" id="count">0</div>
+  <div>
+    <button id="dec">➖ 減一顆</button>
+    <button id="reset">🔄 歸零</button>
+    <button id="inc">➕ 加一顆</button>
+  </div>
+  <div>
+    <button id="camera">📷 開啟相機</button>
+  </div>
+  <div style="position: relative; display: inline-block;">
+    <video id="video" width="320" height="240" autoplay muted></video>
+    <canvas id="canvas" width="320" height="240"></canvas>
+    <div id="overlay"></div>
+  </div>
+  <div id="analysis" style="margin-top: 1em; font-size: 1.2em; color: #555;"></div>
+  <div>
+    <button id="export">📄 匯出 CSV</button>
+  </div>
 
   <script>
-    let video = document.getElementById('video');
-    let canvas = document.getElementById('canvas');
-    let ctx = canvas.getContext('2d');
-    let yolo;
+    let count = 0;
+    let history = [];
+    let opencvReady = false;
+    const countEl = document.getElementById('count');
+    const overlay = document.getElementById('overlay');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const video = document.getElementById('video');
 
-    async function initCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { exact: "environment" },
-          width: { ideal: 640 }, height: { ideal: 480 }
-        }
-      });
-      video.srcObject = stream;
-      return new Promise(resolve => {
-        video.onloadedmetadata = () => resolve(video);
-      });
+    function update() {
+      countEl.textContent = count;
+      overlay.textContent = `數量：${count}`;
     }
 
-    async function loadYOLO() {
-      yolo = await YOLO.load({
-        model: 'https://huggingface.co/keremberke/yolov8n-pills/resolve/main/model.onnx',  // replace with hosted model
-        backend: 'wasm'
-      });
-      document.getElementById('countDisplay').textContent = '模型載入完成，啟動中...';
+    function drawDot(x, y) {
+      context.beginPath();
+      context.arc(x, y, 6, 0, 2 * Math.PI);
+      context.fillStyle = '#00FF00';
+      context.fill();
     }
 
-    async function detectLoop() {
-      if (!yolo || video.readyState !== 4) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    function processFrame() {
+      if (!opencvReady) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const src = cv.imread(canvas);
+      let gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.equalizeHist(gray, gray);
+      let blurred = new cv.Mat();
+      cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-      const result = await yolo.detect(canvas);
-      let count = 0;
-      for (const obj of result.objects) {
-        if (obj.score < 0.5) continue;
-        count++;
-        ctx.strokeStyle = '#00FF00';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(obj.bbox[0], obj.bbox[1], obj.bbox[2], obj.bbox[3]);
+      let tempCount = 0;
+
+      // 圓形偵測
+      let circles = new cv.Mat();
+      cv.HoughCircles(blurred, circles, cv.HOUGH_GRADIENT, 1, 20, 100, 20, 5, 50);
+      for (let i = 0; i < circles.cols; ++i) {
+        let x = circles.data32F[i * 3];
+        let y = circles.data32F[i * 3 + 1];
+        let r = circles.data32F[i * 3 + 2];
+        if (r < 5 || r > 50) continue;
+        drawDot(x, y);
+        tempCount++;
       }
-      document.getElementById('countDisplay').textContent = `偵測到藥錠數量：${count}`;
+
+      // 膠囊/非圓形輪廓偵測
+      let edges = new cv.Mat();
+      cv.Canny(blurred, edges, 50, 150);
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      for (let i = 0; i < contours.size(); i++) {
+        let rect = cv.boundingRect(contours.get(i));
+        let area = rect.width * rect.height;
+        let aspectRatio = rect.width / rect.height;
+        if (area < 200 || area > 5000) continue;
+        if (aspectRatio < 0.4 || aspectRatio > 3.0) continue;
+        drawDot(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        tempCount++;
+      }
+
+      count = tempCount;
+      update();
+
+      src.delete(); gray.delete(); blurred.delete(); circles.delete(); edges.delete(); contours.delete(); hierarchy.delete();
     }
 
-    async function main() {
-      await initCamera();
-      await loadYOLO();
-      setInterval(detectLoop, 1000);
+    function onOpenCvReady() {
+      opencvReady = true;
+      setInterval(processFrame, 1000);
     }
 
-    main();
+    document.getElementById('inc').onclick = () => {
+      count++;
+      history.push({ t: new Date().toISOString(), delta: 1 });
+      update();
+    };
+    document.getElementById('dec').onclick = () => {
+      if (count > 0) {
+        count--;
+        history.push({ t: new Date().toISOString(), delta: -1 });
+        update();
+      }
+    };
+    document.getElementById('reset').onclick = () => {
+      history.push({ t: new Date().toISOString(), delta: 0, reset: true, prev: count });
+      count = 0;
+      update();
+    };
+    document.getElementById('export').onclick = () => {
+      let csv = 'timestamp,delta,reset,prev_count\n';
+      history.forEach(e => {
+        csv += `${e.t},${e.delta},${e.reset ? 1 : 0},${e.prev || ''}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'rx_count_history_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'_') + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    document.getElementById('camera').onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('無法開啟相機（後鏡頭）：' + err.message);
+      }
+    };
   </script>
 </body>
 </html>
