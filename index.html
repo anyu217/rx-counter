@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>藥局即時計數器 Mediapipe 版</title>
+  <title>藥局即時計數器 Mediapipe 版（本地模型）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script type="module">
     import { FilesetResolver, ObjectDetector } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
@@ -10,41 +10,15 @@
     window.ObjectDetector = ObjectDetector;
   </script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 2em;
-      margin: 0;
-      background: #f0f0f0;
-    }
-    h1 {
-      background-color: #007B83;
-      color: white;
-      padding: 1em;
-      margin: 0 0 1em;
-    }
-    video, canvas {
-      width: 100vw;
-      height: auto;
-      display: block;
-      margin: 0 auto;
-      border-radius: 10px;
-    }
-    #overlay {
-      margin-top: 1em;
-      color: #00AA00;
-      font-size: 2em;
-      font-weight: bold;
-    }
-    #countDisplay {
-      margin-top: 1em;
-      font-size: 1.4em;
-      color: #333;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 2em; }
+    h1 { background: #007B83; color: white; padding: 1em; margin: 0 0 1em; }
+    video, canvas { width: 100vw; height: auto; display: block; margin: 0 auto; border-radius: 10px; }
+    #overlay { margin-top: 1em; color: #00AA00; font-size: 2em; font-weight: bold; }
+    #countDisplay { margin-top: 1em; font-size: 1.4em; color: #333; }
   </style>
 </head>
 <body>
-  <h1>藥局即時計數器（Mediapipe 物件偵測）</h1>
+  <h1>藥局即時計數器（本地模型）</h1>
   <video id="video" autoplay muted playsinline></video>
   <canvas id="canvas"></canvas>
   <div id="overlay"></div>
@@ -56,7 +30,6 @@
     const ctx = canvas.getContext('2d');
     const overlay = document.getElementById('overlay');
     const countDisplay = document.getElementById('countDisplay');
-
     let detector;
 
     async function setupCamera() {
@@ -77,9 +50,7 @@
       try {
         const vision = await window.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
         detector = await window.ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/object_detector.task",
-          },
+          baseOptions: { modelAssetPath: "./models/object_detector.task" },
           scoreThreshold: 0.5
         });
         countDisplay.textContent = "模型已載入，開始辨識...";
@@ -115,7 +86,6 @@
       await loadModel();
       detect();
     }
-
     run();
   </script>
 </body>
