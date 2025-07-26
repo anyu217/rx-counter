@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <title>藥局即時計數器 Mediapipe 版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision"></script>
+  <script type="module">
+    import { FilesetResolver, ObjectDetector } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
+    window.FilesetResolver = FilesetResolver;
+    window.ObjectDetector = ObjectDetector;
+  </script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -57,11 +61,7 @@
 
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { exact: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       video.srcObject = stream;
       return new Promise(resolve => {
@@ -74,17 +74,18 @@
     }
 
     async function loadModel() {
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
-      );
-      detector = await ObjectDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/object_detector.task',
-        },
-        scoreThreshold: 0.5
-      });
-      countDisplay.textContent = "模型已載入，開始辨識...";
+      try {
+        const vision = await window.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
+        detector = await window.ObjectDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/object_detector.task",
+          },
+          scoreThreshold: 0.5
+        });
+        countDisplay.textContent = "模型已載入，開始辨識...";
+      } catch (err) {
+        countDisplay.textContent = "模型載入失敗: " + err.message;
+      }
     }
 
     async function detect() {
@@ -97,7 +98,6 @@
         const box = det.boundingBox;
         const centerX = box.originX + box.width / 2;
         const centerY = box.originY + box.height / 2;
-
         ctx.beginPath();
         ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
         ctx.fillStyle = "#00FF00";
@@ -107,7 +107,6 @@
 
       overlay.textContent = `數量：${count}`;
       countDisplay.textContent = `辨識數量：${count}`;
-
       requestAnimationFrame(detect);
     }
 
