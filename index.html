@@ -1,89 +1,24 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>YOLOv8 ONNX JS 藥錠偵測計數器</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 0; }
-    h1 { background: #007B83; color: white; padding: 1em; margin: 0; }
-    video, canvas { width: 90vw; max-width: 600px; border: 2px solid #007B83; border-radius: 8px; margin-top: 10px; }
-    #status { color: green; font-weight: bold; margin-top: 10px; }
-    #count { font-size: 1.5em; color: #007B83; margin-top: 10px; }
+    body { font-family: Arial; text-align: center; background: #f9f9f9; margin: 0; padding: 0; }
+    h1 { background: #008080; color: white; padding: 1em; margin: 0; }
+    video, canvas { width: 90%; max-width: 480px; margin-top: 1em; border: 2px solid #008080; border-radius: 10px; }
+    #status { margin-top: 1em; font-size: 1.2em; color: green; }
+    #count { font-size: 1.5em; margin-top: 1em; color: #004080; }
   </style>
 </head>
 <body>
   <h1>YOLOv8 ONNX JS 藥錠偵測計數器</h1>
-  <video id="video" autoplay muted playsinline></video>
+  <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
   <div id="status">載入模型中...</div>
   <div id="count">偵測數量：0</div>
-
-<script>
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let session;
-
-// 啟動相機
-async function initCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  video.srcObject = stream;
-  return new Promise(resolve => video.onloadedmetadata = () => {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    resolve();
-  });
-}
-
-// 載入 YOLOv8 ONNX 模型
-async function loadModel() {
-  try {
-    session = await ort.InferenceSession.create('./models/yolov8.onnx');
-    document.getElementById('status').textContent = '模型已載入，開始推理...';
-    detectLoop();
-  } catch (err) {
-    document.getElementById('status').textContent = '模型載入失敗: ' + err;
-  }
-}
-
-// YOLOv8 推理（此為簡化版）
-async function runDetection() {
-  // 1. 將 video 畫面轉成 tensor (簡化處理)
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  // 假設模型推理返回 detections
-  const detections = []; // ← 這裡需要替換為實際 YOLOv8 ONNX 輸出解析
-
-  // 2. 畫出檢測結果
-  let count = 0;
-  detections.forEach(det => {
-    const [x, y, w, h] = det.box;
-    ctx.strokeStyle = '#00FF00';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-    ctx.beginPath();
-    ctx.arc(x + w/2, y + h/2, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#00FF00';
-    ctx.fill();
-    count++;
-  });
-
-  document.getElementById('count').textContent = `偵測數量：${count}`;
-}
-
-// 推理迴圈
-async function detectLoop() {
-  if (!session) return;
-  await runDetection();
-  requestAnimationFrame(detectLoop);
-}
-
-// 啟動
-(async () => {
-  await initCamera();
-  await loadModel();
-})();
-</script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
