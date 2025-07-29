@@ -1,20 +1,23 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>YOLOv8 ONNX JS 藥錠偵測</title>
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-  <style>
-    body { text-align:center; font-family:Arial; background:#f4f4f4; }
-    video, canvas { width:90%; max-width:640px; border:1px solid #ccc; border-radius:8px; }
-    #count { font-size:1.5em; color:green; margin-top:10px; }
-  </style>
+<meta charset="UTF-8">
+<title>藥局即時計數器 - YOLOv8 ONNX JS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: Arial; text-align: center; background: #f9f9f9; }
+  h1 { background: #007B83; color: white; padding: 10px; }
+  canvas { width: 100%; max-width: 640px; border: 2px solid #007B83; border-radius: 8px; }
+  #countDisplay { font-size: 1.5em; color: green; margin-top: 10px; }
+</style>
 </head>
 <body>
-  <h1>YOLOv8 ONNX JS 即時藥錠偵測</h1>
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
-  <div id="count">載入模型中...</div>
-  <script src="script.js"></script>
+<h1>YOLOv8 ONNX JS 藥錠偵測計數器</h1>
+<video id="video" autoplay muted playsinline width="640" height="480"></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+<div id="countDisplay">載入模型中...</div>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+<script src="yolo.js"></script>
 </body>
 </html>
