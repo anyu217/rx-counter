@@ -1,55 +1,54 @@
+import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js';
+
+const MODEL_URL = './models/yolov8.onnx'; // 可改成雲端 URL
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const countDisplay = document.getElementById('count');
-let session;
+const statusEl = document.getElementById('status');
+const countEl = document.getElementById('count');
 
 async function setupCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: 640, height: 480 }
-    });
-    video.srcObject = stream;
-    return new Promise(resolve => {
-        video.onloadedmetadata = () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            resolve();
-        };
-    });
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  video.srcObject = stream;
+  await new Promise(r => video.onloadedmetadata = r);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 }
 
 async function loadModel() {
-    countDisplay.innerText = '載入 YOLOv8 模型...';
-    session = await ort.InferenceSession.create('models/yolov8n.onnx');
-    countDisplay.innerText = '模型載入完成，開始推理...';
+  try {
+    const session = await ort.InferenceSession.create(MODEL_URL);
+    statusEl.textContent = "模型載入完成，開始偵測...";
+    return session;
+  } catch (err) {
+    statusEl.textContent = "模型載入失敗: " + err.message;
+    throw err;
+  }
 }
 
-function drawBoxes(boxes) {
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    let count = 0;
-    boxes.forEach(([x,y,w,h]) => {
-        ctx.strokeStyle = 'lime';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h);
-        ctx.beginPath();
-        ctx.arc(x + w/2, y + h/2, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = 'lime';
-        ctx.fill();
-        count++;
-    });
-    countDisplay.innerText = `偵測數量：${count}`;
+function drawDetections(dets) {
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  let count = 0;
+  dets.forEach(det => {
+    const [x,y,w,h] = det;
+    const cx = x + w/2, cy = y + h/2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, 2*Math.PI);
+    ctx.fillStyle = 'lime';
+    ctx.fill();
+    count++;
+  });
+  countEl.textContent = `偵測數量：${count}`;
 }
 
-async function runDetection() {
-    if (!session) return requestAnimationFrame(runDetection);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    // ⚠️ TODO: 推理邏輯需補齊
-    drawBoxes([]);
-    requestAnimationFrame(runDetection);
+async function detectLoop(session) {
+  const dummy = [[50,50,80,80]]; // 🔹示範用，需改為真正推理結果
+  drawDetections(dummy);
+  requestAnimationFrame(()=>detectLoop(session));
 }
 
-(async () => {
-    await setupCamera();
-    await loadModel();
-    runDetection();
+(async ()=>{
+  await setupCamera();
+  const model = await loadModel();
+  detectLoop(model);
 })();
