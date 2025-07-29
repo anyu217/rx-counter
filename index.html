@@ -1,16 +1,16 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <title>YOLOv8 ONNX JS 藥錠偵測計數器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
   <style>
-    body { font-family: Arial; text-align: center; background: #f9f9f9; margin: 0; padding: 0; }
-    h1 { background: #008080; color: white; padding: 1em; margin: 0; }
-    video, canvas { width: 90%; max-width: 480px; margin-top: 1em; border: 2px solid #008080; border-radius: 10px; }
-    #status { margin-top: 1em; font-size: 1.2em; color: green; }
-    #count { font-size: 1.5em; margin-top: 1em; color: #004080; }
+    body { font-family: Arial; text-align: center; background: #f0f0f0; margin: 0; padding: 0; }
+    h1 { background: #007B83; color: white; padding: 1em; margin: 0; }
+    video, canvas { width: 100%; max-width: 480px; border: 2px solid #007B83; border-radius: 10px; }
+    #status { color: green; font-weight: bold; margin: 10px; }
+    #count { font-size: 1.5em; color: #007B83; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -19,6 +19,7 @@
   <canvas id="canvas"></canvas>
   <div id="status">載入模型中...</div>
   <div id="count">偵測數量：0</div>
-  <script type="module" src="main.js"></script>
+
+  <script type="module" src="pill-detector.js"></script>
 </body>
 </html>
